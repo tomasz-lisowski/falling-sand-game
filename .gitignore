@@ -1,0 +1,12 @@
+# SBT build files
+/project/target
+/target
+
+# Intellij
+/.idea
+
+# Metals lang server
+/.metals
+
+# vscode
+/.vscode
