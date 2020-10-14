@@ -87,7 +87,7 @@ class Cell(
       // DataB = Lightness increasing (1) or decreasing (0)
       // Pulse color lightness
       if (dataA == 255) dataB = 0
-      else if (dataA == 200) dataB = 1
+      else if (dataA <= 200) dataB = 1
       if (dataB == 0) dataA -= 1
       else if (dataB == 1) dataA += 1
 
