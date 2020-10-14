@@ -2,11 +2,11 @@ package sandbox.engine
 
 import com.badlogic.gdx.{Gdx}
 import com.badlogic.gdx.utils.viewport.{Viewport}
-import com.badlogic.gdx.graphics.{Pixmap, Texture}
-import com.badlogic.gdx.graphics.g2d.{SpriteBatch, TextureRegion}
+import com.badlogic.gdx.graphics.{Pixmap, Texture, Color}
+import com.badlogic.gdx.graphics.g2d.{SpriteBatch, TextureRegion, Sprite}
 import com.badlogic.gdx.scenes.scene2d.{Stage, InputEvent, InputListener, Actor}
 import com.badlogic.gdx.scenes.scene2d.ui.{Image, Table, ImageButton, ButtonGroup, TextButton}
-import com.badlogic.gdx.scenes.scene2d.utils.{TextureRegionDrawable, ClickListener}
+import com.badlogic.gdx.scenes.scene2d.utils.{SpriteDrawable, TextureRegionDrawable, ClickListener}
 
 class Scene(
     viewport: Viewport,
@@ -38,43 +38,45 @@ class Scene(
   private lazy val uiTable: Table = new Table()
 
   private lazy val cellAreaImage: Image = new Image(cellAreaTextureRegion)
-  private lazy val buttonWater =
-    new ImageButton(
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/water_unchecked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/water_clicked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/water_checked.png")))
+
+  /*== Material Select Buttons Start ==*/
+  case class MatSelectButton(val imageButton: ImageButton, val matIDToSpawn: Int)
+
+  private lazy val matSelectButtons: Seq[MatSelectButton] = Seq(
+    createMatSelectButton("assets/water.png", 0x198ae6ff, 4),
+    createMatSelectButton("assets/sand.png", 0xe6b619ff, 3),
+    createMatSelectButton("assets/air.png", 0xfdf5ffff, 2),
+    createMatSelectButton("assets/oil.png", 0xbd19e6ff, 5),
+    createMatSelectButton("assets/fire.png", 0xe62419ff, 6),
+    createMatSelectButton("assets/lava.png", 0xe64619ff, 10)
+  )
+
+  private lazy val matSelectButtonGroup: ButtonGroup[ImageButton] = new ButtonGroup[ImageButton]()
+
+  private def createMatSelectButton(
+      buttonImagePath: String,
+      baseColorNum: Int,
+      matIDToSpawn: Int
+  ): MatSelectButton = {
+    def baseColorToUncheckedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.2f)
+    def baseColorToClickedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.5f)
+    def baseColorToCheckedColor(color: Color): Color = color
+
+    val baseColor = new Color(baseColorNum)
+    val buttonTexture = new Texture(Gdx.files.internal(buttonImagePath))
+    val buttonSpriteDrawable = new SpriteDrawable(new Sprite(buttonTexture))
+    val imageButton = new ImageButton(
+      buttonSpriteDrawable.tint(baseColorToUncheckedColor(baseColor)),
+      buttonSpriteDrawable.tint(baseColorToClickedColor(baseColor)),
+      buttonSpriteDrawable.tint(baseColorToCheckedColor(baseColor))
     )
-  private lazy val buttonSand =
-    new ImageButton(
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/sand_unchecked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/sand_clicked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/sand_checked.png")))
-    )
-  private lazy val buttonAir =
-    new ImageButton(
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/air_unchecked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/air_clicked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/air_checked.png")))
-    )
-  private lazy val buttonOil =
-    new ImageButton(
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/oil_unchecked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/oil_clicked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/oil_checked.png")))
-    )
-  private lazy val buttonFire =
-    new ImageButton(
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/fire_unchecked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/fire_clicked.png"))),
-      new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/fire_checked.png")))
-    )
+    MatSelectButton(imageButton, matIDToSpawn)
+  }
+  /*== Material Select Buttons End ==*/
 
   private lazy val footer = new Image(
     new TextureRegionDrawable(new Texture(Gdx.files.internal("assets/footer.png")))
   )
-
-  private lazy val materialButtons: ButtonGroup[ImageButton] =
-    new ButtonGroup[ImageButton](buttonWater, buttonSand, buttonAir, buttonOil, buttonFire)
 
   def registerInputHandlers(masterHandler: InputHandler): Unit = {
     cellAreaImage.addListener(new InputListener() {
@@ -115,38 +117,27 @@ class Scene(
       }
     })
 
-    buttonWater.addListener(new ClickListener() {
-      override def clicked(event: InputEvent, x: Float, y: Float): Unit =
-        selectedMaterialID = 4
-    })
-    buttonSand.addListener(new ClickListener() {
-      override def clicked(event: InputEvent, x: Float, y: Float): Unit =
-        selectedMaterialID = 3
-    })
-    buttonAir.addListener(new ClickListener() {
-      override def clicked(event: InputEvent, x: Float, y: Float): Unit =
-        selectedMaterialID = 2
-    })
-    buttonOil.addListener(new ClickListener() {
-      override def clicked(event: InputEvent, x: Float, y: Float): Unit =
-        selectedMaterialID = 5
-    })
-    buttonFire.addListener(new ClickListener() {
-      override def clicked(event: InputEvent, x: Float, y: Float): Unit =
-        selectedMaterialID = 6
+    matSelectButtons.foreach(button => {
+      button.imageButton.addListener(new ClickListener() {
+        override def clicked(event: InputEvent, x: Float, y: Float): Unit =
+          selectedMaterialID = button.matIDToSpawn
+      })
     })
 
     masterHandler.addProcessor(stage)
   }
 
   def init(): Unit = {
+    // Add material select buttons into a button group
+    matSelectButtons.foreach(button => matSelectButtonGroup.add(button.imageButton))
+
     // Default material
-    buttonWater.setChecked(true)
+    matSelectButtons(0).imageButton.setChecked(true)
 
     // Config material buttons group
-    materialButtons.setMaxCheckCount(1)
-    materialButtons.setMinCheckCount(1)
-    materialButtons.setUncheckLast(true)
+    matSelectButtonGroup.setMaxCheckCount(1)
+    matSelectButtonGroup.setMinCheckCount(1)
+    matSelectButtonGroup.setUncheckLast(true)
 
     // Add elements to the stage
     rootTable.top()
@@ -156,11 +147,7 @@ class Scene(
     rootTable.row()
     rootTable.add(footer)
     uiTable.left()
-    uiTable.add(buttonWater)
-    uiTable.add(buttonSand)
-    uiTable.add(buttonAir)
-    uiTable.add(buttonOil)
-    uiTable.add(buttonFire)
+    matSelectButtons.foreach(button => uiTable.add(button.imageButton))
 
     stage.addActor(rootTable)
     rootTable.setFillParent(true)

@@ -23,43 +23,43 @@ sealed trait Material {
 
 // An indestructible material
 object NuclearPasta extends Material {
-  val color = 0xece4c9ff
+  val color = 0xffa3ba00
   val state = Solid
   val density = Float.MaxValue
 }
 
 object Stone extends Material {
-  val color = 0x9c9d97ff
+  val color = 0x9c9d9700
   val state = Solid
   val density = 2400f
 }
 
 object Air extends Material {
-  val color = 0x121212ff
+  val color = 0xfdf5ff00
   val state = Gas
   val density = 1.3f
 }
 
 object Sand extends Material {
-  val color = 0xffff00ff
+  val color = 0xffe89e00
   val state = Solid
   val density = 1442f
 }
 
 object Water extends Material {
-  val color = 0x0000ffff
+  val color = 0x1574c100
   val state = Liquid
   val density = 997f
 }
 
 object Oil extends Material {
-  val color = 0x752438ff
+  val color = 0x120b1900
   val state = Liquid
   val density = 870f
 }
 
 object Fire extends Material {
-  val color = 0xff1111ff
+  val color = 0xb1221b00
   val state = Gas // or Plasma
   val density = 0.3f
 
@@ -68,9 +68,36 @@ object Fire extends Material {
 }
 
 object Smoke extends Material {
-  val color = 0xccccccff
+  val color = 0x52525200
   val state = Gas
   val density = 0.3f
+}
+
+object BurningOil extends Material {
+  val color = 0x38001700
+  val state = Liquid
+  val density = 870f
+
+  override val chanceEmit = 0.5f
+  override val matToEmit = SmokeSoot
+}
+
+object SmokeSoot extends Material {
+  val color = 0x0f0f0f00
+  val state = Gas
+  val density = 0.8f
+}
+
+object Lava extends Material {
+  val color = 0xdb300000
+  val state = Liquid
+  val density = 3100f
+}
+
+object WaterVapor extends Material {
+  val color = 0xffffff00
+  val state = Gas
+  val density = 1.2f
 }
 
 object Material {
@@ -83,6 +110,10 @@ object Material {
       (4, Water),
       (5, Oil),
       (6, Fire),
-      (7, Smoke)
+      (7, Smoke),
+      (8, BurningOil),
+      (9, SmokeSoot),
+      (10, Lava),
+      (11, WaterVapor)
     )
 }

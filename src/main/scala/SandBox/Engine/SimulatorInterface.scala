@@ -22,7 +22,7 @@ class SimulatorInterface(simWidth: Int, simHeight: Int) extends EngineSystem {
   def getMaterialColor(cellIndex: Int): Int = {
     val x: Int = cellIndex % simWidth
     val y: Int = ceil(cellIndex / simHeight)
-    simulator.grid.get(x, y).mat.color
+    simulator.grid.get(x, y).mat.color + simulator.grid.get(x, y).dataA
   }
 
   def step(): Unit = {
