@@ -48,7 +48,9 @@ class Scene(
     createMatSelectButton("assets/air.png", 0xfdf5ffff, 2),
     createMatSelectButton("assets/oil.png", 0xbd19e6ff, 5),
     createMatSelectButton("assets/fire.png", 0xe62419ff, 6),
-    createMatSelectButton("assets/lava.png", 0xe64619ff, 10)
+    createMatSelectButton("assets/lava.png", 0xe64619ff, 10),
+    createMatSelectButton("assets/seed.png", 0x19e631ff, 12),
+    createMatSelectButton("assets/wood.png", 0xe68619ff, 13)
   )
 
   private lazy val matSelectButtonGroup: ButtonGroup[ImageButton] = new ButtonGroup[ImageButton]()

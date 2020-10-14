@@ -100,6 +100,18 @@ object WaterVapor extends Material {
   val density = 1.2f
 }
 
+object Seed extends Material {
+  val color = 0x1f472400
+  val state = Solid
+  val density = 730f
+}
+
+object Wood extends Material {
+  val color = 0x3b2a1700
+  val state = Solid
+  val density = 700f
+}
+
 object Material {
   val all: Map[Int, Material] =
     Map(
@@ -114,6 +126,8 @@ object Material {
       (8, BurningOil),
       (9, SmokeSoot),
       (10, Lava),
-      (11, WaterVapor)
+      (11, WaterVapor),
+      (12, Seed),
+      (13, Wood)
     )
 }

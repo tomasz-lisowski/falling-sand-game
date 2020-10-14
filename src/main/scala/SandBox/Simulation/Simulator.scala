@@ -6,15 +6,12 @@ import com.badlogic.gdx.math.MathUtils
 class Simulator(width: Int, height: Int) {
   val grid: Grid = new Grid(width, height)
   // Iterating over cells in random order helps to avoid un-natural behavior
-  val randCellIterator0: Seq[(Int, Int)] =
-    Random.shuffle(for (y <- 0 until height; x <- 0 until width) yield (x, y))
-  val randCellIterator1: Seq[(Int, Int)] =
-    Random.shuffle(for (y <- 0 until height; x <- 0 until width) yield (x, y))
+  val randCellIterators: Seq[Seq[(Int, Int)]] =
+    Seq(getRandomCellIterator(), getRandomCellIterator(), getRandomCellIterator())
 
   def step(): Unit = {
-    val cellIteratorNum: Int = MathUtils.random(0, 1)
-    val cellIterator: Seq[(Int, Int)] =
-      if (cellIteratorNum == 0) randCellIterator0 else randCellIterator1
+    val cellIteratorNum: Int = MathUtils.random(0, 2)
+    val cellIterator: Seq[(Int, Int)] = randCellIterators(cellIteratorNum)
 
     cellIterator.foreach({ case (x, y) => grid.get(x, y).updated = 0 })
     cellIterator.foreach({
@@ -33,5 +30,9 @@ class Simulator(width: Int, height: Int) {
       cell: Cell
   ): Unit = {
     grid.set(x - dir.x, y - dir.y, cell)
+  }
+
+  private def getRandomCellIterator(): Seq[(Int, Int)] = {
+    Random.shuffle(for (y <- 0 until height; x <- 0 until width) yield (x, y))
   }
 }
