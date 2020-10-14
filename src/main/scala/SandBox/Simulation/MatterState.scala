@@ -1,4 +1,4 @@
-package SandBox
+package sandbox.simulation
 
 abstract class MatterState
 case object Solid extends MatterState

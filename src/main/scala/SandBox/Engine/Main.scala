@@ -1,4 +1,4 @@
-package SandBox
+package sandbox.engine
 
 import com.badlogic.gdx.graphics.{Color}
 import com.badlogic.gdx.Files.{FileType}

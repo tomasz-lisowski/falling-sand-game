@@ -1,4 +1,4 @@
-package SandBox
+package sandbox.engine
 
 import com.badlogic.gdx.math.MathUtils.{floor, ceil}
 

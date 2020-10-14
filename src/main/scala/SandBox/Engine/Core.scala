@@ -1,4 +1,4 @@
-package SandBox
+package sandbox.engine
 
 import scala.util.Random
 import com.badlogic.gdx.{Gdx, Game}
@@ -13,8 +13,8 @@ class Engine(
   private lazy val renderer: Renderer = new Renderer(cellArea, uiArea)
   private lazy val scene: Scene = new Scene(renderer.viewport, renderer.batch, cellArea, uiArea)
   private lazy val inputHandler: InputHandler = new InputHandler
-  private lazy val cellAutomaton: CellAutomaton =
-    new CellAutomaton(cellArea.swidth, cellArea.sheight)
+  private lazy val simulator: SimulatorInterface =
+    new SimulatorInterface(cellArea.swidth, cellArea.sheight)
 
   override def create(): Unit = {
     renderer.init()
@@ -24,26 +24,33 @@ class Engine(
   }
 
   override def render(): Unit = {
+    // Show FPS in title bar
     Gdx.graphics.setTitle(f"SandBox @ ${Gdx.graphics.getFramesPerSecond()}")
+
     placeMaterial(scene.mouseActive, scene.mouseX, scene.mouseY, scene.selectedMaterialID)
-    cellAutomaton.step()
-    updateCellAreaPixmap(scene.cellAreaPixmap, cellAutomaton)
+    simulator.step()
+    updateCellAreaPixmap(scene.cellAreaPixmap)
     scene.update()
     renderer.render(scene.stage)
   }
 
   private val cellIndices: Range = Range(0, cellArea.swidth * cellArea.sheight, 1)
-  private def updateCellAreaPixmap(pixmap: Pixmap, cellAutomaton: CellAutomaton): Unit = {
+  private def updateCellAreaPixmap(pixmap: Pixmap): Unit = {
     pixmap.setBlending(Pixmap.Blending.None)
     cellIndices.foreach(cellIndex => {
       val cellX: Int = cellIndex % cellArea.swidth
       val cellY: Int = ceil(cellIndex / cellArea.sheight)
-      val color: Int = cellAutomaton.getMaterial(cellIndex).color
+      val color: Int = simulator.getMaterialColor(cellIndex)
       pixmap.drawPixel(cellX, cellY, color)
     })
   }
 
-  private def placeMaterial(shouldPlaceMaterial: Boolean, x: Int, y: Int, matID: Int): Unit = {
+  private def placeMaterial(
+      shouldPlaceMaterial: Boolean,
+      x: Int,
+      y: Int,
+      matID: Int
+  ): Unit = {
     val xInCellArea: Int = floor(x / cellArea.scale)
     val yInCellArea: Int = (cellArea.sheight - 1) - floor(y / cellArea.scale)
 
@@ -63,7 +70,7 @@ class Engine(
         )
       Random
         .shuffle(starIndices)
-        .foreach(cellIndex => { cellAutomaton.placeMaterial(cellIndex, Material.ids(matID)) })
+        .foreach(cellIndex => { simulator.placeMaterial(cellIndex, matID) })
     }
   }
 }
