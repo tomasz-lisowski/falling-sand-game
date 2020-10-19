@@ -17,6 +17,7 @@ class Simulator(width: Int, height: Int) {
     cellIterator.foreach({
       case (x, y) =>
         if (grid.get(x, y).updated == 0) {
+          grid.get(x, y).updated += 1
           grid.get(x, y).update(get(x, y, grid), set(x, y, grid))
         }
     })

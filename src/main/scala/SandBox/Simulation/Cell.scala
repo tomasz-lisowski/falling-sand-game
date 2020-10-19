@@ -8,202 +8,280 @@ class Cell(
     var dataA: Int = Cell.randAlpha(),
     var dataB: Int = -1
 ) {
+
   def update(
       get: CardinalDir => Cell,
       set: (CardinalDir, Cell) => Unit
   ): Unit = {
-    updated += 1
-    val canDisplaceNorth: Boolean = mat.canDisplace(get(North).mat, North)
-    val canDisplaceNorthEast: Boolean = mat.canDisplace(get(NorthEast).mat, NorthEast)
-    val canDisplaceNorthWest: Boolean = mat.canDisplace(get(NorthWest).mat, NorthWest)
-    val canDisplaceSouth: Boolean = mat.canDisplace(get(South).mat, South)
-    val canDisplaceSouthEast: Boolean = mat.canDisplace(get(SouthEast).mat, SouthEast)
-    val canDisplaceSouthWest: Boolean = mat.canDisplace(get(SouthWest).mat, SouthWest)
-    val canDisplaceEast: Boolean = mat.canDisplace(get(East).mat, East)
-    val canDisplaceWest: Boolean = mat.canDisplace(get(West).mat, West)
-
-    val randSouthLatitude: CardinalDir =
-      if (MathUtils.random(0, 1) == 0) SouthEast else SouthWest
-    val randNorthLatitude: CardinalDir =
-      if (MathUtils.random(0, 1) == 0) NorthEast else NorthWest
-    val randLatitude: CardinalDir =
-      if (MathUtils.random(0, 1) == 0) East else West
-
     mat match {
       case NuclearPasta => ()
-      case Stone        => update_stone()
-      case Air          => update_air()
-      case Sand         => update_sand()
-      case Water        => update_water()
-      case Oil          => update_oil()
-      case Fire         => update_fire()
-      case Smoke        => update_smoke()
-      case BurningOil   => update_oil_burning()
-      case SmokeSoot    => update_smoke_soot()
-      case Lava         => update_lava()
-      case WaterVapor   => update_water_vapor()
-      case Seed         => update_seed()
-      case Wood         => update_wood()
+      case Stone        => updateStone()
+      case Air          => updateAir()
+      case Sand         => updateSand()
+      case Water        => updateWater()
+      case Oil          => updateOil()
+      case Fire         => updateFire()
+      case Smoke        => updateSmoke()
+      case BurningOil   => updateBurningOil()
+      case SmokeSoot    => updateSmokeSoot()
+      case Lava         => updateLava()
+      case WaterVapor   => updateWaterVapor()
+      case Seed         => updateSeed()
+      case Wood         => updateWood()
+      case BurningWood  => updateBurningWood()
     }
 
-    def update_stone(): Unit = {
-      val moveDir: CardinalDir = move_dest_solid()
-      move(moveDir)
+    /*=== Start of material simulation code ===*/
+    def updateStone(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      move(simMotionSolid())
     }
 
-    def update_air(): Unit = {
+    def updateAir(): Unit = {
+      // dataA = color alpha (always 255)
+      // dataB = unused
       if (dataA != 255) dataA = 255 // Uniform color
-      val moveDir: CardinalDir = move_dest_gas()
-      move(moveDir)
+      move(simMotionGas())
     }
 
-    def update_sand(): Unit = {
-      val moveDir: CardinalDir = move_dest_granular_solid()
-      move(moveDir)
+    def updateSand(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      move(simMotionGranularSolid())
     }
 
-    def update_water(): Unit = {
-      // Sawtooth color lightness
+    def updateWater(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      val chanceToCorrodeStone = 0.001f
+
       if (dataA > 200) dataA -= 1
       else dataA = 255
 
-      val lavaInNeighborhood = matIsInNeighborhood(Lava)
-      val stoneInNeighborhood = matIsInNeighborhood(Stone)
+      val lavaInNeighborhood = matInNeighborhood(Lava)
+      val stoneInNeighborhood = matInNeighborhood(Stone)
       if (lavaInNeighborhood._1) {
         set(Center, new Cell(WaterVapor))
         set(lavaInNeighborhood._2, new Cell(Stone))
       } else if (stoneInNeighborhood._1) {
-        val chanceToCorrodeSand = 0.001f
-        if (MathUtils.random(0f, 1f) <= chanceToCorrodeSand) {
+        if (Cell.applyChance(chanceToCorrodeStone)) {
           set(stoneInNeighborhood._2, new Cell(Sand))
         }
       } else {
-        val moveDir: CardinalDir = move_dest_liquid()
-        move(moveDir)
+        move(simMotionLiquid())
       }
     }
 
-    def update_oil(): Unit = {
-      // DataB = Lightness increasing (1) or decreasing (0)
+    def updateOil(): Unit = {
+      // dataA = color alpha
+      // dataB = if alpha should increase (=1) or decrease (=0) in a step
+
       // Pulse color lightness
       if (dataA == 255) dataB = 0
       else if (dataA <= 200) dataB = 1
       if (dataB == 0) dataA -= 1
       else if (dataB == 1) dataA += 1
 
-      val fireInNeighborhood = matIsInNeighborhood(Fire)
-      val burningOilInNeighborhood = matIsInNeighborhood(BurningOil)
-      val lavaInNeighborhood = matIsInNeighborhood(Lava)
+      val fireInNeighborhood = matInNeighborhood(Fire)
+      val burningOilInNeighborhood = matInNeighborhood(BurningOil)
+      val lavaInNeighborhood = matInNeighborhood(Lava)
       if (fireInNeighborhood._1 || burningOilInNeighborhood._1 || lavaInNeighborhood._1) {
         set(Center, new Cell(BurningOil))
       } else {
-        val moveDir: CardinalDir = move_dest_liquid()
-        move(moveDir)
+        move(simMotionLiquid())
       }
     }
 
-    def update_fire(): Unit = {
-      // DataB = lifetime remaining
+    def updateFire(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before becoming air
+      val chanceToEmitSmoke = 0.2f
+
+      // Lifetime
       if (dataB == -1) dataB = 16
       else if (dataB > 0) dataB -= 1
-      if (matIsInNeighborhood(Water)._1) dataB = 0 // Water extinguishes fire
+      if (matInNeighborhood(Air)._1) dataB = 0 // Can't burn without air
 
       if (dataB > 0) {
-        if (dataB < 5 && mat.chanceEmit > MathUtils.random(0f, 1f)) try_emit_mat(mat.matToEmit)
-        val moveDir: CardinalDir = move_dest_gas()
-        move(moveDir)
+        if (dataB < 5 && Cell.applyChance(chanceToEmitSmoke)) tryEmitMat(Smoke)
+        move(simMotionGas())
         dataB -= 1
       } else {
         set(Center, new Cell(Air))
       }
     }
 
-    def update_smoke(): Unit = {
-      // DataB = lifetime remaining
+    def updateSmoke(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before becoming air
+
+      // Lifetime
       if (dataB == -1) dataB = 10
       else if (dataB > 0) dataB -= 1
 
       if (dataB > 0) {
-        val moveDir: CardinalDir = move_dest_gas()
-        move(moveDir)
+        move(simMotionGas())
         dataB -= 1
       } else {
         set(Center, new Cell(Air))
       }
     }
 
-    def update_oil_burning(): Unit = {
-      // DataB = lifetime remaining
-      if (dataB == -1) dataB = 10
-      else if (dataB > 0 && matIsInNeighborhood(Air)._1) dataB -= 1 // Can't burn without air
+    def updateBurningOil(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before becoming soot
+      val chanceToEmitSoot = 0.5f
 
-      if (mat.chanceEmit > MathUtils.random(0f, 1f)) try_emit_mat(mat.matToEmit)
+      // Lifetime
+      if (dataB == -1) dataB = 10
+      if (dataB > 0 && matInNeighborhood(Air)._1) dataB -= 1 // Can't burn without air
+
+      if (Cell.applyChance(chanceToEmitSoot)) tryEmitMat(SmokeSoot)
       if (dataB > 0) {
-        val moveDir: CardinalDir = move_dest_gas()
-        move(moveDir)
+        move(simMotionGas())
       } else {
-        set(Center, new Cell(mat.matToEmit))
+        set(Center, new Cell(SmokeSoot))
       }
     }
 
-    def update_smoke_soot(): Unit = {
-      // DataB = lifetime remaining
+    def updateSmokeSoot(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before becoming smoke
+
+      // Lifetime
       if (dataB == -1) dataB = 300
       else if (dataB > 0) dataB -= 1
 
       if (dataB > 0) {
-        val moveDir: CardinalDir = move_dest_gas()
-        move(moveDir)
+        move(simMotionGas())
       } else {
         set(Center, new Cell(Smoke))
       }
     }
 
-    def update_lava(): Unit = {
+    def updateLava(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before coolding down to stone
+
+      // Lifetime
+      if (dataB == -1) dataB = 1000
+      else if (dataB > 0 && matNotInNeighborhood(Lava)._1)
+        dataB -= 1 // Can't cooldown if submerged in lava
+
       // Sawtooth color lightness
-      if (dataA > 200) dataA -= 1
+      if (dataA > 210) dataA -= 1
       else dataA = 255
 
-      val moveDir: CardinalDir = move_dest_liquid()
-      move(moveDir)
+      if (dataB > 0) {
+        move(simMotionLiquid())
+      } else {
+        set(Center, new Cell(Stone))
+      }
     }
 
-    def update_water_vapor(): Unit = {
-      // DataB = lifetime remaining
+    def updateWaterVapor(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before condensing to water
+
+      // Lifetime
       if (dataB == -1) dataB = 800
       else if (dataB > 0) dataB -= 1
 
+      // Alpha
       if (dataA < 240) dataA = Cell.randAlpha()
 
       if (dataB > 0) {
-        val moveDir: CardinalDir = move_dest_gas()
-        move(moveDir)
+        move(simMotionGas())
       } else {
         set(Center, new Cell(Water))
       }
     }
 
-    def update_seed(): Unit = {
-      val fireInNeighborhood = matIsInNeighborhood(Fire)
-      val lavaInNeighborhood = matIsInNeighborhood(Lava)
-      if (fireInNeighborhood._1 || lavaInNeighborhood._1) {
-        set(Center, new Cell(Fire))
+    def updateSeed(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      val chanceToBurn = 0.5f
+
+      val fireInNeighborhood = matInNeighborhood(Fire)
+      val lavaInNeighborhood = matInNeighborhood(Lava)
+      val canStartBurning: Boolean = fireInNeighborhood._1 || lavaInNeighborhood._1
+      if (canStartBurning) {
+        if (Cell.applyChance(chanceToBurn)) {
+          set(Center, new Cell(Fire))
+        }
       } else {
-        val moveDir: CardinalDir = move_dest_granular_solid()
-        move(moveDir)
+        move(simMotionGranularSolid())
       }
     }
 
-    def update_wood(): Unit = {
-      val fireInNeighborhood = matIsInNeighborhood(Fire)
-      val lavaInNeighborhood = matIsInNeighborhood(Lava)
-      if (fireInNeighborhood._1 || lavaInNeighborhood._1) {
-        val chanceToBurn = 0.1f
-        if (MathUtils.random(0f, 1f) <= chanceToBurn) {
-          set(Center, new Cell(Fire))
+    def updateWood(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      val chanceToBurn = 0.1f
+
+      val fireInNeighborhood = matInNeighborhood(Fire)
+      val lavaInNeighborhood = matInNeighborhood(Lava)
+      val burningWoodInNeighborhood = matInNeighborhood(BurningWood)
+      val canStartBurning: Boolean =
+        fireInNeighborhood._1 || lavaInNeighborhood._1 || burningWoodInNeighborhood._1
+      if (canStartBurning) {
+        if (Cell.applyChance(chanceToBurn)) {
+          set(Center, new Cell(BurningWood))
         }
       }
     }
+
+    def updateBurningWood(): Unit = {
+      // dataA = color alpha
+      // dataB = lifetime before burning up
+      val chanceToEmitSmoke = 0.1f
+      val chanceToEmitFire = 0.9f
+
+      // Lifetime
+      if (dataB == -1) dataB = 300
+      else if (dataB > 0) dataB -= 1
+
+      if (dataB == 0) {
+        set(Center, new Cell(Air))
+      } else {
+        if (Cell.applyChance(chanceToEmitFire)) tryEmitMat(Fire)
+        if (Cell.applyChance(chanceToEmitSmoke)) tryEmitMat(Smoke)
+      }
+    }
+    /*=== End of material simulation code ===*/
+
+    def tryEmitMat(mat: Material): Unit = {
+      val spaceToEmit: (Boolean, CardinalDir) = matInNeighborhood(Air)
+      if (spaceToEmit._1) {
+        val emitDir = spaceToEmit._2
+        val emitCell = new Cell(mat)
+        set(emitDir, emitCell)
+      }
+    }
+
+    // Returns (true, dir) if found and (false, _) if not
+    def matInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
+      val result = CardinalDir.all.filter(dir => get(dir).mat == mat)
+      if (result.length > 0) {
+        (true, result(0))
+      } else {
+        (false, Center)
+      }
+    }
+
+    def matNotInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
+      val result = CardinalDir.all.filter(dir => get(dir).mat != mat)
+      if (result.length > 0) {
+        (true, result(0))
+      } else {
+        (false, Center)
+      }
+    }
+
+    /*=== Start of motion simulation code ===*/
+    /* Making these into non-local functions made the simulation
+    very slow ceteris paribus. */
 
     def move(moveDir: CardinalDir): Unit = {
       // Limit number of times a cell can move in one step to 2
@@ -214,91 +292,81 @@ class Cell(
       }
     }
 
-    def try_emit_mat(mat: Material): Unit = {
-      val spaceToEmit = matIsInNeighborhood(Air)
-      if (spaceToEmit._1) {
-        val emitDir = spaceToEmit._2
-        val emitCell = new Cell(mat)
-        set(emitDir, emitCell)
-      }
-    }
+    def canDisplace(dir: CardinalDir): Boolean =
+      mat.canDisplace(get(dir).mat, dir) && get(dir).updated <= 1
 
-    def move_dest_granular_solid(): CardinalDir = {
-      if (canDisplaceSouth) South
-      else if (canDisplaceSouthEast && canDisplaceSouthWest)
-        randSouthLatitude
-      else if (canDisplaceSouthEast) SouthEast
-      else if (canDisplaceSouthWest) SouthWest
+    def simMotionGranularSolid(): CardinalDir = {
+      if (canDisplace(South)) South
+      else if (canDisplace(SouthEast) && canDisplace(SouthWest))
+        Cell.randChoice(SouthEast, SouthWest)
+      else if (canDisplace(SouthEast)) SouthEast
+      else if (canDisplace(SouthWest)) SouthWest
       else Center
     }
 
-    def move_dest_solid(): CardinalDir = {
-      if (canDisplaceSouth) South
+    def simMotionSolid(): CardinalDir = {
+      if (canDisplace(South)) South
       else Center
     }
 
-    def move_dest_liquid(): CardinalDir = {
-      def move_dest_horiz(): CardinalDir = {
-        if (canDisplaceSouth) South
-        else if (canDisplaceSouthEast && canDisplaceSouthWest)
-          randSouthLatitude
-        else if (canDisplaceSouthEast) SouthEast
-        else if (canDisplaceSouthWest) SouthWest
+    def simMotionLiquid(): CardinalDir = {
+      def moveDestHoriz(): CardinalDir = {
+        if (canDisplace(South)) South
+        else if (canDisplace(SouthEast) && canDisplace(SouthWest))
+          Cell.randChoice(SouthEast, SouthWest)
+        else if (canDisplace(SouthEast)) SouthEast
+        else if (canDisplace(SouthWest)) SouthWest
         else Center
       }
 
-      def move_dest_vert(): CardinalDir = {
-        if (canDisplaceEast && canDisplaceWest)
-          randLatitude
-        else if (canDisplaceEast) East
-        else if (canDisplaceWest) West
+      def moveDestVert(): CardinalDir = {
+        if (canDisplace(East) && canDisplace(West))
+          Cell.randChoice(East, West)
+        else if (canDisplace(East)) East
+        else if (canDisplace(West)) West
         else Center
       }
 
       lazy val moveVertOrHoriz: Float = MathUtils.random(0f, 1f)
+      // Liquids flow or fall based on a probability
       if (moveVertOrHoriz < 0.9f) {
-        val destDir: CardinalDir = move_dest_horiz()
-        if (destDir == Center) move_dest_vert()
+        val destDir: CardinalDir = moveDestHoriz()
+        if (destDir == Center) moveDestVert()
         else destDir
       } else {
-        val destDir: CardinalDir = move_dest_vert()
-        if (destDir == Center) move_dest_horiz()
+        val destDir: CardinalDir = moveDestVert()
+        if (destDir == Center) moveDestHoriz()
         else destDir
       }
     }
 
-    def move_dest_gas(): CardinalDir = {
+    def simMotionGas(): CardinalDir = {
       lazy val moveVertOrHoriz: Int = MathUtils.random(0, 1)
       if (moveVertOrHoriz == 0) {
-        if (canDisplaceSouth) South
-        else if (canDisplaceSouthEast && canDisplaceSouthWest)
-          randSouthLatitude
-        else if (canDisplaceSouthEast) SouthEast
-        else if (canDisplaceSouthWest) SouthWest
+        if (canDisplace(South)) South
+        else if (canDisplace(SouthEast) && canDisplace(SouthWest))
+          Cell.randChoice(SouthEast, SouthWest)
+        else if (canDisplace(SouthEast)) SouthEast
+        else if (canDisplace(SouthWest)) SouthWest
         else Center
       } else {
-        if (canDisplaceEast && canDisplaceWest)
-          randLatitude
-        else if (canDisplaceEast) East
-        else if (canDisplaceWest) West
+        if (canDisplace(East) && canDisplace(West))
+          Cell.randChoice(East, West)
+        else if (canDisplace(East)) East
+        else if (canDisplace(West)) West
         else Center
       }
     }
-
-    // Returns (true, dir) if found and (false, _) if not
-    def matIsInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
-      // TODO: Use filter
-      CardinalDirection.all.foreach(dir => {
-        if (get(dir).mat == mat) {
-          return (true, dir)
-        }
-      })
-      (false, Center)
-    }
+    /*=== End of motion simulation code ===*/
   }
-
 }
 
 object Cell {
   def randAlpha(): Int = 200 + MathUtils.random(0, 55)
+  def randChoice[T](a: T, b: T): T = {
+    if (MathUtils.random(0, 1) == 0) a else b
+  }
+  def applyChance(p: Float): Boolean = {
+    p >= MathUtils.random(0f, 1f)
+  }
 }

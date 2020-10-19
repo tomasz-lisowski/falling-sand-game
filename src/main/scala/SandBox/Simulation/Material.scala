@@ -6,8 +6,6 @@ sealed trait Material {
   val color: Int // 0xRRGGBBAA
   val state: MatterState
   val density: Float // kg/m^3
-  val chanceEmit: Float = 0f
-  val matToEmit: Material = Air
 
   def canDisplace(mat: Material, dir: CardinalDir): Boolean = {
     val targetCanGetDisplaced: Boolean = mat.state != Solid
@@ -62,9 +60,6 @@ object Fire extends Material {
   val color = 0xb1221b00
   val state = Gas // or Plasma
   val density = 0.3f
-
-  override val chanceEmit = 0.2f
-  override val matToEmit = Smoke
 }
 
 object Smoke extends Material {
@@ -77,9 +72,6 @@ object BurningOil extends Material {
   val color = 0x38001700
   val state = Liquid
   val density = 870f
-
-  override val chanceEmit = 0.5f
-  override val matToEmit = SmokeSoot
 }
 
 object SmokeSoot extends Material {
@@ -107,6 +99,12 @@ object Seed extends Material {
 }
 
 object Wood extends Material {
+  val color = 0x3b2a1700
+  val state = Solid
+  val density = 700f
+}
+
+object BurningWood extends Material {
   val color = 0x3b2a1700
   val state = Solid
   val density = 700f

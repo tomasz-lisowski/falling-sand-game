@@ -42,7 +42,7 @@ case object Center extends CardinalDir {
   val y = 0
 }
 
-object CardinalDirection {
+object CardinalDir {
   val all: Seq[CardinalDir] =
     Seq(
       North,
