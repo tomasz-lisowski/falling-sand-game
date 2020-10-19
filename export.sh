@@ -1,0 +1,1 @@
+zip -r sand_box.zip assets project src build.sbt icon.bmp readme.md screenshot.png

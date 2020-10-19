@@ -33,7 +33,7 @@ object Stone extends Material {
 }
 
 object Air extends Material {
-  val color = 0xedd9d900
+  val color = 0xc8e3fb00
   val state = Gas
   val density = 1.3f
 }
