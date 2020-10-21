@@ -50,7 +50,15 @@ class Scene(
     createMatSelectButton("assets/fire.png", 0xe62419ff, 6),
     createMatSelectButton("assets/lava.png", 0xe64619ff, 10),
     createMatSelectButton("assets/seed.png", 0x19e631ff, 12),
-    createMatSelectButton("assets/wood.png", 0xe68619ff, 13)
+    createMatSelectButton("assets/wood.png", 0xe68619ff, 13),
+    createMatSelectButton("assets/nuclear_pasta.png", 0xe6194cff, 0),
+    createMatSelectButton("assets/smoke.png", 0xccccccff, 7),
+    createMatSelectButton("assets/stone.png", 0x9c9d97ff, 1),
+    createMatSelectButton("assets/vapor.png", 0xffffffff, 11),
+    createMatSelectButton("assets/soot.png", 0x707070ff, 9),
+    createMatSelectButton("assets/copper.png", 0xe66119ff, 14),
+    createMatSelectButton("assets/copper_oxide.png", 0x19e2e6ff, 15),
+    createMatSelectButton("assets/hcl_acid.png", 0xcee619ff, 16)
   )
 
   private lazy val matSelectButtonGroup: ButtonGroup[ImageButton] = new ButtonGroup[ImageButton]()
@@ -149,7 +157,12 @@ class Scene(
     rootTable.row()
     rootTable.add(footer)
     uiTable.left()
-    matSelectButtons.foreach(button => uiTable.add(button.imageButton))
+    matSelectButtons
+      .grouped(8)
+      .foreach(row => {
+        uiTable.row()
+        row.foreach(button => uiTable.add(button.imageButton))
+      })
 
     stage.addActor(rootTable)
     rootTable.setFillParent(true)

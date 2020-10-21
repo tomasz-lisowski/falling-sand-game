@@ -9,7 +9,7 @@ object Main extends App {
   config.title = "Sand Box"
   config.foregroundFPS = 80
   config.width = 512
-  config.height = 512 + 64 + 32
+  config.height = 512 + 64 + 32 + 32
   config.forceExit = false
   config.pauseWhenMinimized = true
   config.resizable = false

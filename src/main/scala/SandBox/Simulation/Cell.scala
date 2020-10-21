@@ -14,7 +14,7 @@ class Cell(
       set: (CardinalDir, Cell) => Unit
   ): Unit = {
     mat match {
-      case NuclearPasta => ()
+      case NuclearPasta => updateNuclearPasta()
       case Stone        => updateStone()
       case Air          => updateAir()
       case Sand         => updateSand()
@@ -29,9 +29,53 @@ class Cell(
       case Seed         => updateSeed()
       case Wood         => updateWood()
       case BurningWood  => updateBurningWood()
+      case Copper       => updateCopper()
+      case CopperOxide  => updateCopperOxide()
+      case HClAcid      => updateHClAcid()
     }
 
     /*=== Start of material simulation code ===*/
+    def updateNuclearPasta(): Unit = {
+      // dataA = color breathing and alpha
+      // dataB = color breathing flags (3 hex digits, 0xf = increase, 0x0 = decrease)
+
+      // Color breathing effect
+      // Init
+      if (dataB == -1) {
+        dataB = 0x000
+        dataA = 0x000000ff
+      }
+      // Max before overflow to higher order byte
+      val bMaxDelta: Int = 0xff - ((NuclearPasta.color >>> 8) & 0xff)
+      val gMaxDelta: Int = 0xff - ((NuclearPasta.color >>> (8 + 8)) & 0xff)
+      val rMaxDelta: Int = 0xff - ((NuclearPasta.color >>> (8 + 8 + 8)) & 0xff)
+
+      var bDelta: Int = (dataA >>> 8) & 0xff
+      var gDelta: Int = (dataA >>> (8 + 8)) & 0xff
+      var rDelta: Int = (dataA >>> (8 + 8 + 8)) & 0xff
+
+      dataA = (stepColor(rDelta, rMaxDelta, 0xf00) << (8 + 8 + 8)) |
+        (stepColor(gDelta, gMaxDelta, 0x0f0) << (8 + 8)) |
+        (stepColor(rDelta, rMaxDelta, 0x00f) << (8)) |
+        0xff
+
+      def stepColor(initDelta: Int, maxDelta: Int, dataBMask: Int): Int = {
+        var deltaColor: Int = initDelta
+        // Determine if color should increase/decrease
+        if (deltaColor == maxDelta) dataB &= ~dataBMask
+        else if (deltaColor == 0) dataB |= dataBMask
+
+        // Apply color change
+        if ((dataB & dataBMask) == 0) deltaColor -= 1
+        else if ((dataB & dataBMask) > 0) deltaColor += 1
+
+        // Clamp to 0-maxDelta
+        if (deltaColor < 0) 0
+        else if (deltaColor > maxDelta) maxDelta
+        else deltaColor
+      }
+    }
+
     def updateStone(): Unit = {
       // dataA = color alpha
       // dataB = unused
@@ -56,6 +100,7 @@ class Cell(
       // dataB = unused
       val chanceToCorrodeStone = 0.001f
 
+      // Pulse alpha
       if (dataA > 200) dataA -= 1
       else dataA = 255
 
@@ -101,7 +146,6 @@ class Cell(
       // Lifetime
       if (dataB == -1) dataB = 16
       else if (dataB > 0) dataB -= 1
-      if (matInNeighborhood(Air)._1) dataB = 0 // Can't burn without air
 
       if (dataB > 0) {
         if (dataB < 5 && Cell.applyChance(chanceToEmitSmoke)) tryEmitMat(Smoke)
@@ -248,6 +292,44 @@ class Cell(
         if (Cell.applyChance(chanceToEmitFire)) tryEmitMat(Fire)
         if (Cell.applyChance(chanceToEmitSmoke)) tryEmitMat(Smoke)
       }
+    }
+
+    def updateCopper(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+      val chanceToOxidize = 0.01f
+
+      if (dataA != 255) dataA = 255 // Uniform color
+
+      // Oxidize
+      if (matInNeighborhood(Air)._1 && Cell.applyChance(chanceToOxidize)) {
+        set(Center, new Cell(CopperOxide))
+      }
+    }
+
+    def updateCopperOxide(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+    }
+
+    def updateHClAcid(): Unit = {
+      // dataA = color alpha
+      // dataB = unused
+
+      // Sawtooth alpha
+      if (dataA > 230) dataA -= 1
+      else dataA = 255
+
+      // Corrode any material that's not air or hcl acid or nuclear pasta
+      val toCorrode = CardinalDir.all.filter(dir =>
+        get(dir).mat != Air &&
+          get(dir).mat != HClAcid &&
+          get(dir).mat != NuclearPasta
+      )
+      if (toCorrode.length != 0) {
+        set(toCorrode(0), new Cell(Smoke))
+        set(Center, new Cell(Air))
+      } else move(simMotionLiquid())
     }
     /*=== End of material simulation code ===*/
 
