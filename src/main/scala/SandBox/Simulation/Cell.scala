@@ -297,7 +297,7 @@ class Cell(
     def updateCopper(): Unit = {
       // dataA = color alpha
       // dataB = unused
-      val chanceToOxidize = 0.01f
+      val chanceToOxidize = 0.002f
 
       if (dataA != 255) dataA = 255 // Uniform color
 
