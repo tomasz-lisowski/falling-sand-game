@@ -315,7 +315,8 @@ class Cell(
     def updateHClAcid(): Unit = {
       // dataA = color alpha
       // dataB = unused
-
+      val chanceToEmitSmokeOnCorrosion = 0.2f
+      
       // Sawtooth alpha
       if (dataA > 230) dataA -= 1
       else dataA = 255
@@ -327,8 +328,11 @@ class Cell(
           get(dir).mat != NuclearPasta
       )
       if (toCorrode.length != 0) {
-        set(toCorrode(0), new Cell(Smoke))
+        set(toCorrode(0), new Cell(Air))
         set(Center, new Cell(Air))
+        if(Cell.applyChance(chanceToEmitSmokeOnCorrosion)){
+			    tryEmitMat(Smoke)
+		    }
       } else move(simMotionLiquid())
     }
     /*=== End of material simulation code ===*/
