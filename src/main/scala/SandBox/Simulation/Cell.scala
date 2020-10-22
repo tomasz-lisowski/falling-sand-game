@@ -109,11 +109,10 @@ class Cell(
       if (lavaInNeighborhood._1) {
         set(Center, new Cell(WaterVapor))
         set(lavaInNeighborhood._2, new Cell(Stone))
-      } else if (stoneInNeighborhood._1) {
-        if (Cell.applyChance(chanceToCorrodeStone)) {
+      } else {
+        if (stoneInNeighborhood._1 && Cell.applyChance(chanceToCorrodeStone)) {
           set(stoneInNeighborhood._2, new Cell(Sand))
         }
-      } else {
         move(simMotionLiquid())
       }
     }
@@ -209,11 +208,11 @@ class Cell(
       // dataB = lifetime before coolding down to stone
 
       // Lifetime
-      if (dataB == -1) dataB = 1000
+      if (dataB == -1) dataB = 2000
       else if (dataB > 0 && matNotInNeighborhood(Lava)._1)
         dataB -= 1 // Can't cooldown if submerged in lava
 
-      // Sawtooth color lightness
+      // Sawtooth alpha
       if (dataA > 210) dataA -= 1
       else dataA = 255
 
@@ -232,7 +231,7 @@ class Cell(
       if (dataB == -1) dataB = 800
       else if (dataB > 0) dataB -= 1
 
-      // Alpha
+      // Random alpha
       if (dataA < 240) dataA = Cell.randAlpha()
 
       if (dataB > 0) {
@@ -316,7 +315,7 @@ class Cell(
       // dataA = color alpha
       // dataB = unused
       val chanceToEmitSmokeOnCorrosion = 0.2f
-      
+
       // Sawtooth alpha
       if (dataA > 230) dataA -= 1
       else dataA = 255
@@ -330,9 +329,9 @@ class Cell(
       if (toCorrode.length != 0) {
         set(toCorrode(0), new Cell(Air))
         set(Center, new Cell(Air))
-        if(Cell.applyChance(chanceToEmitSmokeOnCorrosion)){
-			    tryEmitMat(Smoke)
-		    }
+        if (Cell.applyChance(chanceToEmitSmokeOnCorrosion)) {
+          tryEmitMat(Smoke)
+        }
       } else move(simMotionLiquid())
     }
     /*=== End of material simulation code ===*/
