@@ -1,6 +1,8 @@
 package sandbox.engine
 
 import scala.util.Random
+import scala.collection.mutable
+
 import com.badlogic.gdx.{Gdx, Game}
 import com.badlogic.gdx.math.MathUtils.{ceil, floor}
 import com.badlogic.gdx.scenes.scene2d.{Stage}
@@ -47,30 +49,21 @@ class Engine(
 
   private def placeMaterial(
       shouldPlaceMaterial: Boolean,
-      x: Int,
-      y: Int,
+      mouseX: mutable.Queue[Int],
+      mouseY: mutable.Queue[Int],
       matID: Int
   ): Unit = {
-    val xInCellArea: Int = floor(x / cellArea.scale)
-    val yInCellArea: Int = (cellArea.sheight - 1) - floor(y / cellArea.scale)
+    while (!mouseX.isEmpty && !mouseY.isEmpty) {
+      val x: Int = mouseX.dequeue()
+      val y: Int = mouseY.dequeue()
 
-    if (shouldPlaceMaterial) {
-      val targetCellIndex: Int = (yInCellArea * cellArea.swidth) + xInCellArea
-      placeInStarPattern(targetCellIndex)
-    }
+      val xInCellArea: Int = floor(x / cellArea.scale)
+      val yInCellArea: Int = (cellArea.sheight - 1) - floor(y / cellArea.scale)
 
-    def placeInStarPattern(centerIndex: Int): Unit = {
-      val starIndices: Seq[Int] =
-        Seq(
-          centerIndex,
-          centerIndex + cellArea.swidth,
-          centerIndex - cellArea.swidth,
-          centerIndex + 1,
-          centerIndex - 1
-        )
-      Random
-        .shuffle(starIndices)
-        .foreach(cellIndex => { simulator.placeMaterial(cellIndex, matID) })
+      if (shouldPlaceMaterial) {
+        val targetCellIndex: Int = (yInCellArea * cellArea.swidth) + xInCellArea
+        simulator.placeMaterial(targetCellIndex, matID)
+      }
     }
   }
 }

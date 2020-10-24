@@ -1,6 +1,9 @@
 package sandbox.engine
 
+import scala.collection.mutable
+
 import com.badlogic.gdx.{Gdx}
+import com.badlogic.gdx.math.{Bresenham2, GridPoint2}
 import com.badlogic.gdx.utils.viewport.{Viewport}
 import com.badlogic.gdx.graphics.{Pixmap, Texture, Color}
 import com.badlogic.gdx.graphics.g2d.{SpriteBatch, TextureRegion, Sprite}
@@ -15,33 +18,37 @@ class Scene(
     uiArea: Rect
 ) extends EngineSystem {
   // Which material was selected using the UI
-  var selectedMaterialID: Int = 4
+  var selectedMaterialID: Int = 3
   // Mouse pos inside cell area
-  var mouseX: Int = 0
-  var mouseY: Int = 0
+  private var mousePrevX: Int = 0
+  private var mousePrevY: Int = 0
+  // All points between current and previous mouse pos
+  var mouseX: mutable.Queue[Int] = mutable.Queue[Int](0)
+  var mouseY: mutable.Queue[Int] = mutable.Queue[Int](0)
+  // Is left mouse button down
   var mouseActive: Boolean = false
 
   lazy val stage: Stage = new Stage(viewport, batch)
 
   // Setup the cell area texture (allows postprocessing and rendering in 1 draw call)
-  // This pixmap will be updated from outside of the renderer (renderer only handles its rendering)
+  // This pixmap will be updated from outside of the Scene (Scene only handles its rendering)
   lazy val cellAreaPixmap: Pixmap = new Pixmap(
     cellArea.swidth,
     cellArea.sheight,
     Pixmap.Format.RGBA8888
   )
-
   private lazy val cellAreaTexture: Texture = new Texture(cellAreaPixmap)
   private lazy val cellAreaTextureRegion: TextureRegion = new TextureRegion(cellAreaTexture)
+  private lazy val cellAreaImage: Image = new Image(cellAreaTextureRegion)
 
   private lazy val rootTable: Table = new Table()
   private lazy val uiTable: Table = new Table()
 
-  private lazy val cellAreaImage: Image = new Image(cellAreaTextureRegion)
-
   /*== Material Select Buttons Start ==*/
   case class MatSelectButton(val imageButton: ImageButton, val matIDToSpawn: Int)
 
+  // Group buttons such that only 1 can be active at any time (gets filled at init)
+  private lazy val matSelectButtonGroup: ButtonGroup[ImageButton] = new ButtonGroup[ImageButton]()
   private lazy val matSelectButtons: Seq[MatSelectButton] = Seq(
     createMatSelectButton("assets/water.png", 0x198ae6ff, 4),
     createMatSelectButton("assets/sand.png", 0xe6b619ff, 3),
@@ -61,15 +68,13 @@ class Scene(
     createMatSelectButton("assets/hcl_acid.png", 0xcee619ff, 16)
   )
 
-  private lazy val matSelectButtonGroup: ButtonGroup[ImageButton] = new ButtonGroup[ImageButton]()
-
   private def createMatSelectButton(
       buttonImagePath: String,
       baseColorNum: Int,
       matIDToSpawn: Int
   ): MatSelectButton = {
-    def baseColorToUncheckedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.2f)
-    def baseColorToClickedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.5f)
+    def baseColorToUncheckedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.4f)
+    def baseColorToClickedColor(color: Color): Color = new Color(color.r, color.g, color.b, 0.6f)
     def baseColorToCheckedColor(color: Color): Color = color
 
     val baseColor = new Color(baseColorNum)
@@ -141,8 +146,8 @@ class Scene(
     // Add material select buttons into a button group
     matSelectButtons.foreach(button => matSelectButtonGroup.add(button.imageButton))
 
-    // Default material
-    matSelectButtons(0).imageButton.setChecked(true)
+    // Set default material
+    matSelectButtons(3).imageButton.setChecked(true)
 
     // Config material buttons group
     matSelectButtonGroup.setMaxCheckCount(1)
@@ -157,6 +162,7 @@ class Scene(
     rootTable.row()
     rootTable.add(footer)
     uiTable.left()
+    // Add material select buttons in rows of 8
     matSelectButtons
       .grouped(8)
       .foreach(row => {
@@ -169,19 +175,42 @@ class Scene(
   }
 
   def update(): Unit = {
+    // Mouse did not move so reuse last position
+    if (mouseX.isEmpty) mouseX.enqueue(mousePrevX)
+    if (mouseY.isEmpty) mouseY.enqueue(mousePrevY)
+
     // Update cell area texture
     cellAreaTexture.draw(cellAreaPixmap, 0, 0)
   }
 
+  // Helper object to get a line of points between 2 points
+  private lazy val bresenham: Bresenham2 = new Bresenham2()
   private def updateMouse(
       newActive: Boolean = mouseActive,
-      newX: Int = mouseX,
-      newY: Int = mouseY
+      newX: Int = mousePrevX,
+      newY: Int = mousePrevY
   ): Unit = {
     mouseActive = newActive
     val validX: Boolean = newX >= 0 || newX < cellArea.width
     val validY: Boolean = newY >= 0 || newY < cellArea.height
-    if (validX) mouseX = newX
-    if (validY) mouseY = newY
+
+    if (validX && validY) {
+      val interpMousePos: com.badlogic.gdx.utils.Array[GridPoint2] =
+        bresenham.line(mousePrevX, mousePrevY, newX, newY)
+      val interpMousePosIter: com.badlogic.gdx.utils.Array.ArrayIterator[GridPoint2] =
+        interpMousePos.iterator
+
+      mouseX.enqueue(mousePrevX)
+      mouseY.enqueue(mousePrevY)
+      mousePrevX = newX
+      mousePrevY = newY
+
+      // Save all intermediate points (between current and prev frame mouse pos)
+      while (interpMousePosIter.hasNext) {
+        val e = interpMousePosIter.next()
+        mouseX.enqueue(e.x)
+        mouseY.enqueue(e.y)
+      }
+    }
   }
 }
