@@ -146,8 +146,8 @@ class Scene(
     // Add material select buttons into a button group
     matSelectButtons.foreach(button => matSelectButtonGroup.add(button.imageButton))
 
-    // Set default material
-    matSelectButtons(3).imageButton.setChecked(true)
+    // Set default material to sand
+    matSelectButtons(1).imageButton.setChecked(true)
 
     // Config material buttons group
     matSelectButtonGroup.setMaxCheckCount(1)
@@ -191,8 +191,8 @@ class Scene(
       newY: Int = mousePrevY
   ): Unit = {
     mouseActive = newActive
-    val validX: Boolean = newX >= 0 || newX < cellArea.width
-    val validY: Boolean = newY >= 0 || newY < cellArea.height
+    val validX: Boolean = newX >= 0 && newX < cellArea.width
+    val validY: Boolean = newY >= 0 && newY < cellArea.height
 
     if (validX && validY) {
       val interpMousePos: com.badlogic.gdx.utils.Array[GridPoint2] =

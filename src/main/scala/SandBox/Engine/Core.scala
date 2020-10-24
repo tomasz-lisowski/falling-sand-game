@@ -29,8 +29,8 @@ class Engine(
     // Show FPS in title bar
     Gdx.graphics.setTitle(f"SandBox @ ${Gdx.graphics.getFramesPerSecond()}")
 
-    placeMaterial(scene.mouseActive, scene.mouseX, scene.mouseY, scene.selectedMaterialID)
     simulator.step()
+    placeMaterial(scene.mouseActive, scene.mouseX, scene.mouseY, scene.selectedMaterialID)
     updateCellAreaPixmap(scene.cellAreaPixmap)
     scene.update()
     renderer.render(scene.stage)

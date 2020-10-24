@@ -1,4 +1,5 @@
 package sandbox.simulation
+
 import com.badlogic.gdx.math.MathUtils
 import scala.util.Random
 
@@ -355,6 +356,7 @@ class Cell(
       }
     }
 
+    // Returns (true, dir) if at least one cell is not 'mat' and (false, _) otherwise
     def matNotInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
       val result = CardinalDir.all.filter(dir => get(dir).mat != mat)
       if (result.length > 0) {
@@ -366,7 +368,7 @@ class Cell(
 
     /*=== Start of motion simulation code ===*/
     /* Making these into non-local functions made the simulation
-    very slow ceteris paribus. */
+    very slow ceteris paribus, so it's best they are kept here. */
 
     def move(moveDir: CardinalDir): Unit = {
       // Limit number of times a cell can move in one step to 2
@@ -377,8 +379,18 @@ class Cell(
       }
     }
 
-    def canDisplace(dir: CardinalDir): Boolean =
+    def canDisplace(dir: CardinalDir): Boolean = {
+      // Can only move diagonally if the cell can displace either it's left/right or up/down neighbor
+      val canMoveDiagonally: Boolean = dir match {
+        case SouthEast => canDisplace(South) || canDisplace(East)
+        case SouthWest => canDisplace(South) || canDisplace(West)
+        case NorthEast => canDisplace(North) || canDisplace(East)
+        case NorthWest => canDisplace(North) || canDisplace(West)
+        case _         => true
+      }
+
       mat.canDisplace(get(dir).mat, dir) && get(dir).updated <= 1
+    }
 
     def simMotionGranularSolid(): CardinalDir = {
       if (canDisplace(South)) South
