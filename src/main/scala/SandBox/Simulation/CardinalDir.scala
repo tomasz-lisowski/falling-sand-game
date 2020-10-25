@@ -47,12 +47,11 @@ object CardinalDir {
     Seq(
       North,
       NorthEast,
+      NorthWest,
       East,
+      West,
       SouthEast,
       South,
-      SouthWest,
-      West,
-      NorthWest,
-      Center
+      SouthWest
     )
 }

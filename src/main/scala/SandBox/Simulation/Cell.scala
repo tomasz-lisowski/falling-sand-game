@@ -3,12 +3,10 @@ package sandbox.simulation
 import com.badlogic.gdx.math.MathUtils
 import scala.util.Random
 
-class Cell(
-    var mat: Material = Air,
-    var updated: Int = 0,
-    var dataA: Int = Cell.randAlpha(),
-    var dataB: Int = -1
-) {
+class Cell(var mat: Material = Air) {
+  var updated: Int = 0
+  var dataA: Int = Cell.randAlpha()
+  var dataB: Int = -1
 
   def update(
       get: CardinalDir => Cell,
@@ -108,11 +106,11 @@ class Cell(
       val lavaInNeighborhood = matInNeighborhood(Lava)
       val stoneInNeighborhood = matInNeighborhood(Stone)
       if (lavaInNeighborhood._1) {
-        set(Center, new Cell(WaterVapor))
-        set(lavaInNeighborhood._2, new Cell(Stone))
+        changeMaterial(WaterVapor)
+        get(lavaInNeighborhood._2).changeMaterial(Stone)
       } else {
         if (stoneInNeighborhood._1 && Cell.applyChance(chanceToCorrodeStone)) {
-          set(stoneInNeighborhood._2, new Cell(Sand))
+          get(stoneInNeighborhood._2).changeMaterial(Sand)
         }
         move(simMotionLiquid())
       }
@@ -132,7 +130,7 @@ class Cell(
       val burningOilInNeighborhood = matInNeighborhood(BurningOil)
       val lavaInNeighborhood = matInNeighborhood(Lava)
       if (fireInNeighborhood._1 || burningOilInNeighborhood._1 || lavaInNeighborhood._1) {
-        set(Center, new Cell(BurningOil))
+        changeMaterial(BurningOil)
       } else {
         move(simMotionLiquid())
       }
@@ -152,7 +150,7 @@ class Cell(
         move(simMotionGas())
         dataB -= 1
       } else {
-        set(Center, new Cell(Air))
+        changeMaterial(Air)
       }
     }
 
@@ -168,7 +166,7 @@ class Cell(
         move(simMotionGas())
         dataB -= 1
       } else {
-        set(Center, new Cell(Air))
+        changeMaterial(Air)
       }
     }
 
@@ -185,7 +183,7 @@ class Cell(
       if (dataB > 0) {
         move(simMotionGas())
       } else {
-        set(Center, new Cell(SmokeSoot))
+        changeMaterial(SmokeSoot)
       }
     }
 
@@ -200,7 +198,7 @@ class Cell(
       if (dataB > 0) {
         move(simMotionGas())
       } else {
-        set(Center, new Cell(Smoke))
+        changeMaterial(Smoke)
       }
     }
 
@@ -210,7 +208,7 @@ class Cell(
 
       // Lifetime
       if (dataB == -1) dataB = 2000
-      else if (dataB > 0 && matNotInNeighborhood(Lava)._1)
+      else if (dataB > 0 && matInNeighborhood(Lava, true)._1)
         dataB -= 1 // Can't cooldown if submerged in lava
 
       // Sawtooth alpha
@@ -220,7 +218,7 @@ class Cell(
       if (dataB > 0) {
         move(simMotionLiquid())
       } else {
-        set(Center, new Cell(Stone))
+        changeMaterial(Stone)
       }
     }
 
@@ -238,7 +236,7 @@ class Cell(
       if (dataB > 0) {
         move(simMotionGas())
       } else {
-        set(Center, new Cell(Water))
+        changeMaterial(Water)
       }
     }
 
@@ -252,7 +250,7 @@ class Cell(
       val canStartBurning: Boolean = fireInNeighborhood._1 || lavaInNeighborhood._1
       if (canStartBurning) {
         if (Cell.applyChance(chanceToBurn)) {
-          set(Center, new Cell(Fire))
+          changeMaterial(Fire)
         }
       } else {
         move(simMotionGranularSolid())
@@ -271,7 +269,7 @@ class Cell(
         fireInNeighborhood._1 || lavaInNeighborhood._1 || burningWoodInNeighborhood._1
       if (canStartBurning) {
         if (Cell.applyChance(chanceToBurn)) {
-          set(Center, new Cell(BurningWood))
+          changeMaterial(BurningWood)
         }
       }
     }
@@ -287,7 +285,7 @@ class Cell(
       else if (dataB > 0) dataB -= 1
 
       if (dataB == 0) {
-        set(Center, new Cell(Air))
+        changeMaterial(Air)
       } else {
         if (Cell.applyChance(chanceToEmitFire)) tryEmitMat(Fire)
         if (Cell.applyChance(chanceToEmitSmoke)) tryEmitMat(Smoke)
@@ -303,7 +301,7 @@ class Cell(
 
       // Oxidize
       if (matInNeighborhood(Air)._1 && Cell.applyChance(chanceToOxidize)) {
-        set(Center, new Cell(CopperOxide))
+        changeMaterial(CopperOxide)
       }
     }
 
@@ -328,8 +326,8 @@ class Cell(
           get(dir).mat != NuclearPasta
       )
       if (toCorrode.length != 0) {
-        set(toCorrode(0), new Cell(Air))
-        set(Center, new Cell(Air))
+        get(toCorrode(0)).changeMaterial(Air)
+        changeMaterial(Air)
         if (Cell.applyChance(chanceToEmitSmokeOnCorrosion)) {
           tryEmitMat(Smoke)
         }
@@ -340,30 +338,22 @@ class Cell(
     def tryEmitMat(mat: Material): Unit = {
       val spaceToEmit: (Boolean, CardinalDir) = matInNeighborhood(Air)
       if (spaceToEmit._1) {
-        val emitDir = spaceToEmit._2
-        val emitCell = new Cell(mat)
-        set(emitDir, emitCell)
+        get(spaceToEmit._2).changeMaterial(mat)
       }
     }
 
-    // Returns (true, dir) if found and (false, _) if not
-    def matInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
-      val result = CardinalDir.all.filter(dir => get(dir).mat == mat)
-      if (result.length > 0) {
-        (true, result(0))
-      } else {
-        (false, Center)
-      }
-    }
-
-    // Returns (true, dir) if at least one cell is not 'mat' and (false, _) otherwise
-    def matNotInNeighborhood(mat: Material): (Boolean, CardinalDir) = {
-      val result = CardinalDir.all.filter(dir => get(dir).mat != mat)
-      if (result.length > 0) {
-        (true, result(0))
-      } else {
-        (false, Center)
-      }
+    // This causes a memory leak (significant only because of how many cells are calling it)
+    /* When 'not' is false, returns first dir that contains the 'mat',
+    if 'not' is true, returns first dir that does not contain the 'mat' */
+    def matInNeighborhood(mat: Material, not: Boolean = false): (Boolean, CardinalDir) = {
+      CardinalDir.all.foreach(dir => {
+        if (!not) {
+          if ((get(dir).mat == mat)) return (true, dir)
+        } else {
+          if ((get(dir).mat != mat)) return (true, dir)
+        }
+      })
+      return (false, Center)
     }
 
     /*=== Start of motion simulation code ===*/
@@ -388,8 +378,7 @@ class Cell(
         case NorthWest => canDisplace(North) || canDisplace(West)
         case _         => true
       }
-
-      mat.canDisplace(get(dir).mat, dir) && get(dir).updated <= 1
+      mat.canDisplace(get(dir).mat, dir) && get(dir).updated <= 1 && canMoveDiagonally
     }
 
     def simMotionGranularSolid(): CardinalDir = {
@@ -456,6 +445,14 @@ class Cell(
     }
     /*=== End of motion simulation code ===*/
   }
+
+  def changeMaterial(newMat: Material): Unit = {
+    mat = newMat
+    updated = 0
+    dataA = Cell.randAlpha()
+    dataB = -1
+  }
+
 }
 
 object Cell {
