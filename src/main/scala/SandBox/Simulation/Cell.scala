@@ -105,12 +105,12 @@ class Cell(var mat: Material = Air) {
 
       val lavaInNeighborhood = matInNeighborhood(Lava)
       val stoneInNeighborhood = matInNeighborhood(Stone)
-      if (lavaInNeighborhood._1) {
+      if (lavaInNeighborhood != Center) {
         changeMaterial(WaterVapor)
-        get(lavaInNeighborhood._2).changeMaterial(Stone)
+        get(lavaInNeighborhood).changeMaterial(Stone)
       } else {
-        if (stoneInNeighborhood._1 && Cell.applyChance(chanceToCorrodeStone)) {
-          get(stoneInNeighborhood._2).changeMaterial(Sand)
+        if (stoneInNeighborhood != Center && Cell.applyChance(chanceToCorrodeStone)) {
+          get(stoneInNeighborhood).changeMaterial(Sand)
         }
         move(simMotionLiquid())
       }
@@ -126,10 +126,11 @@ class Cell(var mat: Material = Air) {
       if (dataB == 0) dataA -= 1
       else if (dataB == 1) dataA += 1
 
-      val fireInNeighborhood = matInNeighborhood(Fire)
-      val burningOilInNeighborhood = matInNeighborhood(BurningOil)
-      val lavaInNeighborhood = matInNeighborhood(Lava)
-      if (fireInNeighborhood._1 || burningOilInNeighborhood._1 || lavaInNeighborhood._1) {
+      if (
+        matInNeighborhood(Fire) != Center ||
+        matInNeighborhood(BurningOil) != Center ||
+        matInNeighborhood(Lava) != Center
+      ) {
         changeMaterial(BurningOil)
       } else {
         move(simMotionLiquid())
@@ -177,7 +178,7 @@ class Cell(var mat: Material = Air) {
 
       // Lifetime
       if (dataB == -1) dataB = 10
-      if (dataB > 0 && matInNeighborhood(Air)._1) dataB -= 1 // Can't burn without air
+      if (dataB > 0 && matInNeighborhood(Air) != Center) dataB -= 1 // Can't burn without air
 
       if (Cell.applyChance(chanceToEmitSoot)) tryEmitMat(SmokeSoot)
       if (dataB > 0) {
@@ -208,7 +209,7 @@ class Cell(var mat: Material = Air) {
 
       // Lifetime
       if (dataB == -1) dataB = 2000
-      else if (dataB > 0 && matInNeighborhood(Lava, true)._1)
+      else if (dataB > 0 && matInNeighborhood(Lava, true) != Center)
         dataB -= 1 // Can't cooldown if submerged in lava
 
       // Sawtooth alpha
@@ -245,9 +246,9 @@ class Cell(var mat: Material = Air) {
       // dataB = unused
       val chanceToBurn = 0.5f
 
-      val fireInNeighborhood = matInNeighborhood(Fire)
-      val lavaInNeighborhood = matInNeighborhood(Lava)
-      val canStartBurning: Boolean = fireInNeighborhood._1 || lavaInNeighborhood._1
+      val canStartBurning: Boolean =
+        matInNeighborhood(Fire) != Center ||
+          matInNeighborhood(Lava) != Center
       if (canStartBurning) {
         if (Cell.applyChance(chanceToBurn)) {
           changeMaterial(Fire)
@@ -262,11 +263,10 @@ class Cell(var mat: Material = Air) {
       // dataB = unused
       val chanceToBurn = 0.1f
 
-      val fireInNeighborhood = matInNeighborhood(Fire)
-      val lavaInNeighborhood = matInNeighborhood(Lava)
-      val burningWoodInNeighborhood = matInNeighborhood(BurningWood)
       val canStartBurning: Boolean =
-        fireInNeighborhood._1 || lavaInNeighborhood._1 || burningWoodInNeighborhood._1
+        matInNeighborhood(Fire) != Center ||
+          matInNeighborhood(Lava) != Center ||
+          matInNeighborhood(BurningWood) != Center
       if (canStartBurning) {
         if (Cell.applyChance(chanceToBurn)) {
           changeMaterial(BurningWood)
@@ -300,7 +300,7 @@ class Cell(var mat: Material = Air) {
       if (dataA != 255) dataA = 255 // Uniform color
 
       // Oxidize
-      if (matInNeighborhood(Air)._1 && Cell.applyChance(chanceToOxidize)) {
+      if (matInNeighborhood(Air) != Center && Cell.applyChance(chanceToOxidize)) {
         changeMaterial(CopperOxide)
       }
     }
@@ -336,24 +336,21 @@ class Cell(var mat: Material = Air) {
     /*=== End of material simulation code ===*/
 
     def tryEmitMat(mat: Material): Unit = {
-      val spaceToEmit: (Boolean, CardinalDir) = matInNeighborhood(Air)
-      if (spaceToEmit._1) {
-        get(spaceToEmit._2).changeMaterial(mat)
+      val spaceToEmit: CardinalDir = matInNeighborhood(Air)
+      if (spaceToEmit != Center) {
+        get(spaceToEmit).changeMaterial(mat)
       }
     }
 
     // This causes a memory leak (significant only because of how many cells are calling it)
     /* When 'not' is false, returns first dir that contains the 'mat',
     if 'not' is true, returns first dir that does not contain the 'mat' */
-    def matInNeighborhood(mat: Material, not: Boolean = false): (Boolean, CardinalDir) = {
+    def matInNeighborhood(mat: Material, not: Boolean = false): CardinalDir = {
       CardinalDir.all.foreach(dir => {
-        if (!not) {
-          if ((get(dir).mat == mat)) return (true, dir)
-        } else {
-          if ((get(dir).mat != mat)) return (true, dir)
-        }
+        if (!not && get(dir).mat == mat) return dir
+        if (not && get(dir).mat != mat) return dir
       })
-      return (false, Center)
+      return Center
     }
 
     /*=== Start of motion simulation code ===*/
